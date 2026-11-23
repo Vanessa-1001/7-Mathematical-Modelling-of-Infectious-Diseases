@@ -1,0 +1,164 @@
+---
+title: "Day 2 Revision: SIRS Equilibrium & R0 Parameterization"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+library(plotly)
+```
+
+## 1. Baseline SIRS Model (3-Year Simulation)
+Here we run the SIRS model over 3 years (`365 * 3` days) so damped oscillations have enough time to settle into a steady endemic equilibrium.
+
+```{r sirs-baseline}
+SIRS_model <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    # Total living population
+    P <- (S + I + R)
+    
+    # Force of infection
+    lam <- parameters['beta'] * I / P
+    
+    # ODEs including vital dynamics (mu) and waning immunity (alpha)
+    dS <- mu * P - mu * S - lam * S + alpha * R         
+    dI <- lam * S - tau * I - mu * I 
+    dR <- tau * I - mu * R - alpha * R
+    
+    list(c(dS, dI, dR))
+  }) 
+}
+
+# Initial population (999) with 1 initial infectious case
+initP <- 999 
+initI <- 1 
+initR <- 0 
+initS <- initP - initI - initR
+istate <- c(S = initS, I = initI, R = initR)
+
+# Baseline parameters (time in days)
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),  # Natural birth/death rate (~50 yr lifespan)
+  beta = 0.25,               # Transmission rate
+  tau = 1 / 10,              # Recovery rate (10-day infectious period)
+  alpha = 1 / 150            # Waning immunity rate (150-day immunity duration)
+)
+
+# Calculate R0 (~2.498)
+R0 <- parameters['beta'] / (parameters['tau'] + parameters['mu'])
+R0
+
+# Simulate over 3 years (1095 days)
+time_start <- 0
+time_stop <- 365 * 3
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+out <- deSolve::ode(y = istate, times = tps, func = SIRS_model, parms = parameters) 
+
+# Plot all 3 compartments (S, I, R) over time
+plot(out)
+
+# Extract the final value of I (column 3) as our endemic equilibrium (I*)
+tail(out[, 3], 1)
+```
+
+## 2. Two-Way Sensitivity Analysis: Contour Plot of Endemic Equilibrium
+Next, we vary both `beta` and `alpha` across a 5x5 grid (from 50% to 150% of their baseline values) and store the steady-state number of infectious individuals (`I*`) in a matrix.
+
+```{r contour-sweep}
+# Create parameter grids (50% to 150% of baseline)
+beta_vector <- seq(0.5, 1.5, by = 0.25) * parameters["beta"]
+alpha_vector <- round(seq(0.5, 1.5, by = 0.25) * parameters["alpha"], 4)
+
+# Initialize empty matrix to store equilibrium I* values
+result <- matrix(0, nrow = length(beta_vector), ncol = length(alpha_vector))
+
+# Nested loop over all combinations of beta and alpha
+for (i in 1:length(beta_vector)) {
+  for (j in 1:length(alpha_vector)) {
+    parameters["beta"] <- beta_vector[i]
+    parameters["alpha"] <- alpha_vector[j]
+    
+    out <- deSolve::ode(y = istate, times = tps, func = SIRS_model, parms = parameters) 
+    
+    # Record final I value at t = 1095 days
+    result[i, j] <- tail(out[, 3], 1)
+  }
+}
+
+# Base R contour plot (Note: contour() expects rows on X-axis and columns on Y-axis)
+contour(result, xaxt = "n", yaxt = "n", ylab = "alpha", xlab = "beta", 
+        nlevels = 10, col = hcl.colors(14, "Temps"), lwd = 2)
+axis(1, at = seq(0, 1, length.out = length(beta_vector)), labels = beta_vector)
+axis(2, at = seq(0, 1, length.out = length(alpha_vector)), labels = alpha_vector)
+
+# Interactive Plotly contour plot
+# Note: z = ~t(result) aligns matrix rows (beta) with x and columns (alpha) with y
+fig <- plot_ly(x = beta_vector, y = alpha_vector, z = ~t(result), type = "contour") %>%
+  colorbar(title = 'Infectious people at equilibrium', titleside = "right", x = 0.91, ticks = "inside") %>%
+  layout(xaxis = list(title = 'beta'),
+         yaxis = list(title = 'alpha'))
+fig
+```
+
+## 3. Re-parameterizing the Model Using R0 Directly
+Instead of passing `beta` as an input, we substitute $\beta \approx R_0 \cdot \tau$ into the force of infection (`lam <- (R0 * tau) * I / P`). This allows us to directly test how $R_0$ controls disease persistence (the epidemic threshold at $R_0 = 1$).
+
+```{r r0-parameterization}
+SIRS_model2 <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    
+    # Force of infection written directly in terms of R0 and tau
+    lam <- (R0 * tau) * I / P
+    
+    dS <- mu * P - mu * S - lam * S + alpha * R         
+    dI <- lam * S - tau * I - mu * I 
+    dR <- tau * I - mu * R - alpha * R
+    
+    list(c(dS, dI, dR))
+  }) 
+}
+
+# Set R0 directly to 2
+parameters2 <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  R0 = 2,              
+  tau = 1 / 10,
+  alpha = 1 / 150
+)
+
+# Run for 600 days
+time_start <- 0
+time_stop <- 600 
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+out2 <- deSolve::ode(y = istate, times = tps, func = SIRS_model2, parms = parameters2) 
+plot(out2)
+tail(out2[, 3], 1)
+```
+
+## 4. Bifurcation / Threshold Sweep Across R0
+Here we vary $R_0$ from 0.2 up to 4.0 and plot the equilibrium number of infected individuals ($I^*$), demonstrating the critical threshold at $R_0 = 1$.
+
+```{r r0-sweep}
+parameters2["R0"] <- 2 
+r0_vector <- seq(0.1, 2, by = 0.2) * parameters2["R0"]
+result2 <- rep(0, length(r0_vector))
+
+for (i in 1:length(r0_vector)) {
+  parameters2["R0"] <- r0_vector[i]
+  out2 <- deSolve::ode(y = istate, times = tps, func = SIRS_model2, parms = parameters2) 
+  result2[i] <- tail(out2[, 3], 1)
+}
+
+# Plot equilibrium prevalence vs R0
+plot(r0_vector, result2, type = "l", 
+     ylab = "Infectious people at equilibrium", 
+     xlab = "Basic reproduction number, R0")
+points(r0_vector, result2, pch = 16)
+abline(v = 1, lty = 2, col = "red") # Reference line at the R0 = 1 threshold
+```

@@ -1,0 +1,105 @@
+---
+title: "Day 3 Revision: SEACRERD Model (Partial vs. Complete Waning Immunity)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+```
+
+## 1. SEACRERD Model Dynamics
+Here we track both **complete waning immunity** (`R -> S` at rate `alpha`) and **partial/leaky immunity** (`R -> ER` at reduced susceptibility `sigma * lam`). Secondary exposures (`ER`) progress exclusively into mild/asymptomatic infection (`A`), protecting against clinical disease (`C`) and death (`D`).
+
+```{r seacrerd-model}
+SEACRERD <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    # Total living population includes secondary exposed (ER)
+    P <- (S + E + A + C + R + ER)
+    
+    # Force of infection includes primary (E) and secondary (ER) pre-symptomatic shedding
+    lam <- parameters['beta'] * (rho * A + C + delta * E + delta_r * ER) / P
+    
+    dS  <- mu * P - mu * S - lam * S + alpha * R  
+    dE  <- lam * S - v * E - mu * E
+    # Note: Both primary (1-gamma)*v*E and ALL secondary (v*ER) cases enter A
+    dA  <- (1 - gamma) * v * E - taua * A - mu * A + v * ER
+    dC  <- gamma * v * E - tauc * C - mu * C 
+    # R loses individuals via natural death (mu), reinfection (sigma*lam), and full waning (alpha)
+    dR  <- (1 - phi) * tauc * C + taua * A - mu * R - sigma * lam * R - alpha * R
+    dER <- sigma * lam * R - v * ER - mu * ER
+    dD  <- phi * tauc * C
+    
+    list(c(dS, dE, dA, dC, dR, dER, dD))
+  }) 
+}
+
+# Initial conditions (P = 999, 1 initial clinical case)
+initP <- 999 
+initE <- 0
+initA <- 0
+initC <- 1
+initR <- 0 
+initER <- 0
+initD <- 0
+initS <- initP - initE - initA - initC - initR - initER
+istate <- c(S = initS, E = initE, A = initA, C = initC, R = initR, ER = initER, D = initD)
+
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25, 
+  v = 1 / 4,        # 4-day latent period (for both E and ER)
+  gamma = 0.2,      # 20% clinical fraction for primary infections
+  taua = 1 / 10,    # 10-day asymptomatic duration
+  tauc = 1 / 10,    # 10-day clinical duration
+  phi = 0.05,       # 5% CFR among clinical cases
+  rho = 1,          # Relative infectiousness of A
+  sigma = 0.5,      # Relative susceptibility to reinfection while in R (50% immune)
+  alpha = 1 / 180,  # Complete immunity waning rate (180 days)
+  delta_r = 0.0,    # Pre-symptomatic infectiousness of secondary exposed (ER)
+  delta = 0.0       # Pre-symptomatic infectiousness of primary exposed (E)
+)
+
+time_start <- 0
+time_stop <- 600
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+out <- deSolve::ode(y = istate, times = tps, func = SEACRERD, parms = parameters) 
+Result <- as.data.frame(out)
+
+# Plot all 7 compartments over time and phase plane S vs (A + C)
+plot(out)
+plot(Result[["S"]], Result[["C"]] + Result[["A"]], type = "l", lwd = 2,
+     ylim = c(0, 300), xlim = c(0, 1000),
+     xlab = "Susceptible (S)", ylab = "Active Infected (A + C)",
+     main = "SEACRERD Phase Plane")
+```
+
+## 2. Parameter Sweep: Transmission (`beta`) vs. Complete Waning (`alpha`)
+Here we vary `beta` (0.1 to 2.9) and `alpha` (0.003 to 0.01) to see how transmission and complete immunity loss jointly sustain endemic clinical cases (`out[, 5]`, column `C`) at Day 600.
+
+```{r contour-beta-alpha}
+beta_vector <- seq(0.1, 3, by = 0.2)
+alpha_vector <- seq(0.003, 0.01, by = 0.001)
+result <- matrix(0, nrow = length(beta_vector), ncol = length(alpha_vector))
+
+for (i in 1:length(beta_vector)) {
+  for (j in 1:length(alpha_vector)) {
+    parameters["beta"] <- beta_vector[i]
+    parameters["alpha"] <- alpha_vector[j]
+    
+    out <- deSolve::ode(y = istate, times = tps, func = SEACRERD, parms = parameters) 
+    
+    # Column 5 is C (Clinical cases) at Day 600
+    result[i, j] <- tail(out[, 5], 1)
+  }
+}
+
+contour(result, xaxt = "n", yaxt = "n", xlab = "Transmission Rate (beta)", 
+        ylab = "Complete Waning Rate (alpha)", nlevels = 10, labcex = 1.2, 
+        col = hcl.colors(12, "Temps"), lwd = 2,
+        main = "Endemic Clinical Cases (C) at Day 600")
+axis(1, at = seq(0, 1, length.out = length(beta_vector)), labels = beta_vector)
+axis(2, at = seq(0, 1, length.out = length(alpha_vector)), labels = alpha_vector)
+```

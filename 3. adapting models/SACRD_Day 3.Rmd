@@ -1,0 +1,128 @@
+---
+title: "Day 3 Revision: SACRD Model (Asymptomatic vs. Clinical Infections)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+```
+
+## 1. Baseline SACRD Model vs. Standard SIR
+Here, `gamma = 0.2` is the **clinical fraction** (20% become clinical `C`, 80% remain asymptomatic `A`). Notice `taua = 1/20` (asymptomatic infections last 20 days) vs. `tauc = 1/10` (clinical infections last 10 days).
+
+```{r sacrd-vs-sir}
+SACRD <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + A + C + R)
+    # Both A and C transmit equally in baseline model
+    lam <- parameters['beta'] * (A + C) / P
+    
+    dS <- mu * P - mu * S - lam * S   
+    dA <- (1 - gamma) * lam * S - taua * A - mu * A
+    dC <- gamma * lam * S - tauc * C - mu * C 
+    dR <- (1 - phi) * tauc * C + taua * A - mu * R
+    dD <- phi * tauc * C   # Only clinical cases (C) suffer disease-induced mortality
+    
+    list(c(dS, dA, dC, dR, dD))
+  }) 
+}
+
+initP <- 999 
+initA <- 0
+initC <- 1
+initR <- 0 
+initD <- 0
+initS <- initP - initA - initC - initR
+istate <- c(S = initS, A = initA, C = initC, R = initR, D = initD)
+
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25, 
+  gamma = 0.2,    # 20% probability of developing clinical symptoms
+  taua = 1 / 20,  # 20-day duration for asymptomatic cases
+  tauc = 1 / 10,  # 10-day duration for clinical cases
+  phi = 0.05      # 5% Case Fatality Ratio among clinical cases
+)
+
+time_start <- 0
+time_stop <- 600
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+out <- deSolve::ode(y = istate, times = tps, func = SACRD, parms = parameters) 
+Result <- as.data.frame(out)
+
+# Phase plane: Susceptibles (S) vs Total Active Infections (A + C)
+plot(Result[["S"]], Result[["C"]] + Result[["A"]], type = "l", lwd = 2,
+     ylim = c(0, 500), xlim = c(0, 1000),
+     xlab = "Susceptible (S)", ylab = "Total Infected (A + C)",
+     main = "SACRD vs. Standard SIR Phase Plane")
+
+# Compare with SIR_model2 (where everyone has a 10-day infectious period)
+SIR_model2 <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    lam <- parameters['beta'] * I / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - (1 - phi) * tau * I - delta * phi * I - mu * I 
+    dR <- (1 - phi) * tau * I - mu * R
+    dD <- delta * phi * I
+    list(c(dS, dI, dR, dD))
+  }) 
+}
+
+istate2 <- c(S = 998, I = 1, R = 0, D = 0)
+parameters2 <- c(mu = (1/(50*52*7)), beta = 0.25, tau = 1/10, delta = 1/10, phi = 0.05)
+
+out2 <- deSolve::ode(y = istate2, times = tps, func = SIR_model2, parms = parameters2) 
+Result2 <- as.data.frame(out2)
+
+# Overlay SIR trajectory in blue (much smaller peak because average infectious period is 10d vs 18d)
+lines(Result2[["S"]], Result2[["I"]], col = "dodgerblue3", lwd = 3)
+legend("topright", legend = c("SACRD (taua=1/20, tauc=1/10)", "SIR2 (tau=1/10)"),
+       col = c("black", "dodgerblue3"), lwd = c(2, 3))
+```
+
+## 2. Effect of Longer Asymptomatic Duration (`taua`) & Lower Transmission (`rho`)
+When `beta = 0.09`, a 10-day duration (`taua = 1/10`) yields $R_0 < 1$, whereas a 20-day asymptomatic duration (`taua = 1/20`) pushes $R_0 > 1$. Adding `rho = 0.75` reduces asymptomatic infectiousness by 25%.
+
+```{r sacrd-rho}
+# Test low beta (0.09) with short (10d) vs long (20d) asymptomatic duration
+parameters['beta'] <- 0.09
+parameters['taua'] <- 1 / 10
+out_lowbeta <- deSolve::ode(y = istate, times = tps, func = SACRD, parms = parameters) 
+
+parameters['taua'] <- 1 / 20
+out3_lowbeta <- deSolve::ode(y = istate, times = tps, func = SACRD, parms = parameters) 
+
+plot(out_lowbeta[, 2], out_lowbeta[, 3] + out_lowbeta[, 4], type = "l", lwd = 2,
+     ylim = c(0, 150), xlim = c(0, 1000),
+     xlab = "Susceptible (S)", ylab = "Total Infected (A + C)",
+     main = "Low Beta (0.09): Impact of Asymptomatic Duration & Rho")
+lines(out3_lowbeta[, 2], out3_lowbeta[, 3] + out3_lowbeta[, 4], col = "seagreen2", lwd = 3)
+
+# SACRD with reduced asymptomatic infectiousness (rho = 0.75)
+SACRD_rho <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + A + C + R)
+    lam <- parameters['beta'] * (A * rho + C) / P
+    
+    dS <- mu * P - mu * S - lam * S   
+    dA <- (1 - gamma) * lam * S - taua * A - mu * A
+    dC <- gamma * lam * S - tauc * C - mu * C 
+    dR <- (1 - phi) * tauc * C + taua * A - mu * R
+    dD <- phi * tauc * C
+    list(c(dS, dA, dC, dR, dD))
+  }) 
+}
+
+parameters['rho'] <- 0.75
+# Fixed typo: using 'istate' instead of undefined 'istate_a'
+out3r_lowbeta <- deSolve::ode(y = istate, times = tps, func = SACRD_rho, parms = parameters) 
+
+lines(out3r_lowbeta[, 2], out3r_lowbeta[, 3] + out3r_lowbeta[, 4], col = "violetred", lwd = 3)
+legend("topright", legend = c("taua=1/10 (R0 < 1)", "taua=1/20, rho=1", "taua=1/20, rho=0.75"),
+       col = c("black", "seagreen2", "violetred"), lwd = c(2, 3, 3))
+```

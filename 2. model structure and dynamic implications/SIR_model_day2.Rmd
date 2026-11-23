@@ -1,0 +1,132 @@
+---
+title: "Day 2 Revision: Transmission Scaling & Interventions"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE)
+library(deSolve)
+```
+
+## 1. Frequency-Dependent vs. Density-Dependent SIR
+Here we compare standard frequency-dependent transmission ($\lambda = \beta I / P$) against density-dependent transmission ($\lambda = \beta I$) on the S-I phase plane.
+
+```{r transmission-scaling}
+# Frequency-dependent SIR model (lam = beta * I / P)
+SIR_model <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    lam <- parameters['beta'] * I / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - tau * I - mu * I 
+    dR <- tau * I - mu * R
+    list(c(dS, dI, dR))
+  }) 
+}
+
+# Initial conditions and baseline parameters
+initP <- 999 
+initI <- 1 
+initR <- 0 
+initS <- initP - initI - initR
+istate <- c(S = initS, I = initI, R = initR)
+
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25,              
+  tau = 1 / 10            
+)
+
+R0 <- parameters['beta'] / (parameters['tau'] + parameters['mu'])
+
+# Simulation time grid (0 to 365 days)
+time_start <- 0
+time_stop <- 365 
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+# Solve frequency-dependent model
+out <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters) 
+Flu2009 <- as.data.frame(out)
+
+# Phase-plane plot (S vs I)
+plot(Flu2009[["S"]], Flu2009[["I"]], type = "l", ylim = c(0, 1000), xlim = c(0, 1000),
+     xlab = "Susceptible (S)", ylab = "Infected (I)", main = "Phase Plane: FD vs DD")
+
+# Density-dependent SIR model (lam = beta * I, no division by P)
+SIR_model_dd <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    lam <- parameters['beta'] * I
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - tau * I - mu * I 
+    dR <- tau * I - mu * R
+    list(c(dS, dI, dR))
+  }) 
+}
+
+out_dd <- deSolve::ode(y = istate, times = tps, func = SIR_model_dd, parms = parameters) 
+Flu2009_dd <- as.data.frame(out_dd)
+
+# Overlay density-dependent trajectory (explodes rapidly because beta isn't scaled by P)
+lines(Flu2009_dd[["S"]], Flu2009_dd[["I"]], col = "sandybrown", lwd = 2)
+```
+
+## 2. Parameter Sensitivity Template (`++`, `+`, `-`, `--`)
+Here we vary `beta` up and down around the baseline (0.25) in the frequency-dependent model to compare epidemic curves.
+
+```{r parameter-variations}
+parameters_pp <- c(mu = (1/(50*52*7)), beta = 0.45, tau = 1/10) # ++ (much higher beta)
+parameters_p  <- c(mu = (1/(50*52*7)), beta = 0.35, tau = 1/10) # +  (higher beta)
+parameters_m  <- c(mu = (1/(50*52*7)), beta = 0.18, tau = 1/10) # -  (lower beta)
+parameters_mm <- c(mu = (1/(50*52*7)), beta = 0.12, tau = 1/10) # -- (much lower beta)
+
+out_pp <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters_pp) 
+out_p  <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters_p) 
+out_m  <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters_m) 
+out_mm <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters_mm) 
+
+# Plot baseline I(t) and overlay all 4 parameter variations
+plot(out[, 1], out[, 3], type = "l", lwd = 2, ylim = c(0, 600), 
+     xlab = "Time (days)", ylab = "Infected (I)", main = "Effect of Varying Beta")
+lines(out_pp[, 1], out_pp[, 3], col = "darkred", lwd = 2)
+lines(out_p[, 1],  out_p[, 3],  col = "red", lty = 2)
+lines(out_m[, 1],  out_m[, 3],  col = "blue", lty = 2)
+lines(out_mm[, 1], out_mm[, 3], col = "darkblue", lwd = 2)
+legend("topright", legend = c("beta=0.45", "beta=0.35", "Baseline (0.25)", "beta=0.18", "beta=0.12"),
+       col = c("darkred", "red", "black", "blue", "darkblue"), lty = c(1, 2, 1, 2, 1), lwd = 2)
+```
+
+## 3. Adding an Intervention (`SIR_model_interventios`)
+Because `SIR_model_interventios` was left undefined in the template, here is how you write it—for example, reducing transmission (`beta`) by 50% starting at Day 40 (e.g., social distancing or mask mandate).
+
+```{r interventions}
+SIR_model_interventios <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    
+    # Reduce transmission by 50% once time t reaches day 40
+    beta_eff <- ifelse(t >= 40, beta * 0.5, beta)
+    lam <- beta_eff * I / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - tau * I - mu * I 
+    dR <- tau * I - mu * R
+    list(c(dS, dI, dR))
+  }) 
+}
+
+# Run intervention on baseline and high-beta (pp) scenarios
+out_interventions <- deSolve::ode(y = istate, times = tps, func = SIR_model_interventios, parms = parameters) 
+out_interventions_pp <- deSolve::ode(y = istate, times = tps, func = SIR_model_interventios, parms = parameters_pp) 
+
+# Compare baseline without intervention vs. with intervention at Day 40
+plot(out[, 1], out[, 3], type = "l", lwd = 2, ylim = c(0, 300),
+     xlab = "Time (days)", ylab = "Infected (I)", main = "Impact of Intervention at Day 40")
+lines(out_interventions[, 1], out_interventions[, 3], col = "forestgreen", lwd = 2)
+abline(v = 40, lty = 2, col = "gray40")
+legend("topright", legend = c("No Intervention", "50% Beta Reduction (Day 40)"),
+       col = c("black", "forestgreen"), lwd = 2)
+```

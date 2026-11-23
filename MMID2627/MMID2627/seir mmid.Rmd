@@ -1,0 +1,111 @@
+---
+title: "SEIR Model Simu"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Load necessary packages
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(deSolve,
+               tidyverse,
+               here)
+```
+
+```{r load-data}
+# 1. LOAD OBSERVED DATA
+observed_data <- read.csv("SIR.csv") 
+head(observed_data) # Verifies column headers in console
+```
+
+```{r settings}
+# 2. SET UP SEIR INITIAL CONDITIONS & PARAMETERS
+
+# Total population N = 100 (S = 99, I = 1)
+initial_state <- c(S = 99,   # Susceptible 
+                   E = 0,    # Exposed (incubating)
+                   I = 1,    # Infectious
+                   R = 0)    # Recovered
+
+# Parameters tuned to match a population scale of 100
+parameters <- c(beta  = 0.014,  # Transmission rate
+                sigma = 0.5,    # Incubation rate (2 days incubation period = 1/2 = 0.5)
+                gamma = 0.2)    # Recovery rate (5 days infectious period = 1/5 = 0.2)
+
+# Set the time span of 365 days starting at time = 0
+time_span <- seq(0, 365, by = 1) 
+```
+
+```{r model-function}
+# 3. DEFINE THE SEIR MODEL FUNCTION
+seir_model <- function(time, state, parameters) {
+  with(as.list(c(state, parameters)), {
+
+    # Rate of change equations
+    dS <- -beta * S * I
+    dE <-  beta * S * I - sigma * E
+    dI <-  sigma * E - gamma * I
+    dR <-  gamma * I
+    
+    # Return the rates of change in the exact order of initial_state
+    list(c(dS, dE, dI, dR))
+  })
+}
+```
+
+```{r solve}
+# 4. SOLVE DIFFERENTIAL EQUATIONS
+seir_out <- ode(
+  y = initial_state,
+  time = time_span,     
+  func = seir_model,
+  parms = parameters
+)
+```
+
+```{r convert}
+# 5. CONVERT OUTPUT TO A DATA FRAME
+seir_out_df <- as.data.frame(seir_out)
+```
+
+```{r plot-dynamics}
+# 6. VISUALIZE THE RESULTS SEIR
+ggplot(seir_out_df, aes(x = time)) +
+  geom_line(aes(y = S, color = "Susceptible"), linewidth = 1) +
+  geom_line(aes(y = E, color = "Exposed"), linewidth = 1) +      
+  geom_line(aes(y = I, color = "Infected"), linewidth = 1) +
+  geom_line(aes(y = R, color = "Recovered"), linewidth = 1) +
+  labs(title = "SEIR Model Dynamics Forecast",
+       x = "Time (days)",
+       y = "Population Count") +
+  scale_color_manual(values = c("Susceptible" = "#2F5597", 
+                                "Exposed"     = "#ED7D31",     
+                                "Infected"    = "#C00000",
+                                "Recovered"   = "#548235")) +
+  theme_minimal()
+```
+
+```{r plot-comparison}
+# 7. VISUALIZE COMPARISON GRAPH
+comparison_graph <- ggplot() +
+  # Real world dataset tracking line (Sums Asymptomatic and Symptomatic)
+  geom_line(data = observed_data,
+            aes(x = X, y = Ia + Is, color = "Observed (Ia + Is)"),
+            linewidth = 0.8) +
+  geom_point(data = observed_data,
+             aes(x = X, y = Ia + Is, color = "Observed (Ia + Is)"),
+             size = 2) +
+  # SEIR Model tracking line
+  geom_line(data = seir_out_df,
+            aes(x = time, y = I, color = "SEIR Model (I)"),
+            linewidth = 1) +
+  scale_color_manual(values = c("Observed (Ia + Is)" = "black", "SEIR Model (I)" = "red")) +
+  labs(title = "SEIR Model Fit vs. Observed Active Cases",
+       x = "Time (Days)",
+       y = "Active Infected Population",
+       color = "Source") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+# Load graph
+comparison_graph
+```

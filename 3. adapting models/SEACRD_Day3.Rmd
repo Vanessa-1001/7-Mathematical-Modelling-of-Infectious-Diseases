@@ -1,0 +1,130 @@
+---
+title: "Day 3 Revision: SEACRD Model & Pre-Symptomatic Transmission"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+```
+
+## 1. SEACRD Model Setup & Comparison Scenarios
+Here we add the Exposed (`E`) compartment (`v = 1/4`, 4-day latent period) and a pre-symptomatic infectiousness weight `delta` on `E`. We compare three scenarios:
+1. **Baseline `SEACRD`** (`v = 1/4`, `delta = 0`)
+2. **Instantaneous progression** (`v = 1e10`, `delta = 0` — equivalent to `SACRD`)
+3. **Pre-symptomatic transmission** (`v = 1/4`, `delta = 0.5`)
+
+```{r seacrd-scenarios}
+SEACRD <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + E + A + C + R)
+    
+    # Force of infection includes Asymptomatic (rho*A), Clinical (C), and Exposed (delta*E)
+    lam <- parameters['beta'] * (rho * A + C + delta * E) / P
+    
+    dS <- mu * P - mu * S - lam * S   
+    dE <- lam * S - v * E - mu * E
+    dA <- (1 - gamma) * v * E - taua * A - mu * A
+    dC <- gamma * v * E - tauc * C - mu * C 
+    dR <- (1 - phi) * tauc * C + taua * A - mu * R
+    dD <- phi * tauc * C
+    
+    list(c(dS, dE, dA, dC, dR, dD))
+  }) 
+}
+
+# Initial conditions (P = 999, 1 initial clinical case)
+initP <- 999 
+initE <- 0
+initA <- 0
+initC <- 1
+initR <- 0 
+initD <- 0
+initS <- initP - initE - initA - initC - initR
+istate <- c(S = initS, E = initE, A = initA, C = initC, R = initR, D = initD)
+
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25, 
+  v = 1 / 4,      # Progression rate from E -> A/C (4-day latent period)
+  gamma = 0.2,    # 20% develop clinical symptoms
+  taua = 1 / 10,  # 10-day asymptomatic duration
+  tauc = 1 / 10,  # 10-day clinical duration
+  phi = 0.05,     # 5% clinical CFR
+  rho = 1,        # Relative infectiousness of A
+  delta = 0.0     # Relative infectiousness of E (pre-symptomatic transmission)
+)
+
+time_start <- 0
+time_stop <- 600
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+# Scenario 1: Baseline SEACRD (4-day latent period, non-infectious E)
+out <- deSolve::ode(y = istate, times = tps, func = SEACRD, parms = parameters) 
+Result <- as.data.frame(out)
+
+# Scenario 2: Huge progression rate (v = 1e10) -> collapses SEACRD into SACRD
+parameters['v'] <- 1e10
+out2 <- deSolve::ode(y = istate, times = tps, func = SEACRD, parms = parameters) 
+Result2 <- as.data.frame(out2)
+
+# Scenario 3: Pre-symptomatic infectiousness (v = 1/4, delta = 0.5)
+parameters['v'] <- 1 / 4
+parameters['delta'] <- 0.5
+out3 <- deSolve::ode(y = istate, times = tps, func = SEACRD, parms = parameters) 
+Result3 <- as.data.frame(out3)
+
+# Plot 1: Phase plane S vs (A + C)
+plot(Result[["S"]], Result[["C"]] + Result[["A"]], type = "l", lwd = 2,
+     ylim = c(0, 300), xlim = c(0, 1000), xlab = "Susceptible (S)", ylab = "Active Infected (A + C)",
+     main = "Phase Plane: Effect of Latent Delay (v) & Pre-Symptomatic Spread (delta)")
+lines(Result2[["S"]], Result2[["C"]] + Result2[["A"]], col = "lightcoral", lwd = 3)
+lines(Result3[["S"]], Result3[["C"]] + Result3[["A"]], col = "plum", lwd = 3)
+legend("topright", legend = c("SEACRD (v=1/4, delta=0)", "SACRD limit (v=1e10, delta=0)", "Pre-symptomatic (v=1/4, delta=0.5)"),
+       col = c("black", "lightcoral", "plum"), lwd = c(2, 3, 3))
+
+# Plot 2: Phase plane R vs (A + C)
+plot(Result[["R"]], Result[["C"]] + Result[["A"]], type = "l", lwd = 2,
+     ylim = c(0, 300), xlim = c(0, 1000), xlab = "Recovered (R)", ylab = "Active Infected (A + C)")
+lines(Result2[["R"]], Result2[["C"]] + Result2[["A"]], col = "lightcoral", lwd = 3)
+lines(Result3[["R"]], Result3[["C"]] + Result3[["A"]], col = "plum", lwd = 3)
+
+# Plot 3: Active Infections (A + C) over time steps
+plot(Result[["C"]] + Result[["A"]], type = "l", lwd = 2, ylim = c(0, 300),
+     xlab = "Time Step (0.1 days)", ylab = "Active Infected (A + C)", main = "Epidemic Curves Over Time")
+lines(Result2[["C"]] + Result2[["A"]], col = "lightcoral", lwd = 3)
+lines(Result3[["C"]] + Result3[["A"]], col = "plum", lwd = 3)
+
+# Compare cumulative person-days of infection across all 3 scenarios
+sum(Result[["C"]] + Result[["A"]])
+sum(Result2[["C"]] + Result2[["A"]])
+sum(Result3[["C"]] + Result3[["A"]])
+```
+
+## 2. Two-Way Parameter Sweep: Progression Rate (`v`) vs. Pre-Symptomatic Spread (`delta`)
+Here we vary `v` (0.1 to 1.0) and `delta` (0.2 to 1.0) and record the final Recovered count (`out[, 6]`, i.e., `R` at Day 600) to see how pre-symptomatic transmission drives total outbreak size.
+
+```{r contour-v-delta}
+v_vector <- seq(0.1, 1, by = 0.1)
+delta_vector <- seq(0.2, 1, by = 0.1)
+result <- matrix(0, nrow = length(v_vector), ncol = length(delta_vector))
+
+for (i in 1:length(v_vector)) {
+  for (j in 1:length(delta_vector)) {
+    parameters["v"] <- v_vector[i]
+    parameters["delta"] <- delta_vector[j]
+    
+    out <- deSolve::ode(y = istate, times = tps, func = SEACRD, parms = parameters) 
+    
+    # Column 6 is R (Recovered) at t = 600 days
+    result[i, j] <- tail(out[, 6], 1)
+  }
+}
+
+contour(result, xaxt = "n", yaxt = "n", xlab = "Progression Rate (v)", ylab = "Pre-symptomatic Infectiousness (delta)", 
+        nlevels = 10, labcex = 1.2, col = hcl.colors(12, "Temps"), lwd = 2,
+        main = "Final Recovered Population (R) by v and delta")
+axis(1, at = seq(0, 1, length.out = length(v_vector)), labels = v_vector)
+axis(2, at = seq(0, 1, length.out = length(delta_vector)), labels = delta_vector)
+```

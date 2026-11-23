@@ -1,0 +1,152 @@
+---
+title: "Day 3 Revision: Mortality Parameterization (CFR) & Imported Cases"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk[["set"]](echo = TRUE, warning = FALSE, message = FALSE)
+library(deSolve)
+library(ggplot2)
+```
+
+## 1. Competing Death and Recovery Rates (`SIR_model`)
+Here, recovery (`tau = 1/10`) and disease-induced death (`delta = 1/10`) act as competing hazards. Notice that `P` (living population) excludes `D`.
+
+```{r competing-rates}
+SIR_model <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    # Living population size (excludes dead compartment D)
+    P <- (S + I + R)
+    lam <- parameters['beta'] * I / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - tau * I - delta * I - mu * I 
+    dR <- tau * I - mu * R
+    dD <- delta * I
+    
+    list(c(dS, dI, dR, dD))
+  }) 
+}
+
+# Initial conditions (P = 999, 1 initial infected, 0 dead)
+initP <- 999 
+initI <- 1 
+initR <- 0 
+initD <- 0
+initS <- initP - initI - initR
+istate <- c(S = initS, I = initI, R = initR, D = initD)
+
+# Parameters: equal recovery and death rates (both 1/10)
+parameters <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25,              
+  tau = 1 / 10,
+  delta = 1 / 10
+)
+
+time_start <- 0
+time_stop <- 600
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+out <- deSolve::ode(y = istate, times = tps, func = SIR_model, parms = parameters) 
+Result <- as.data.frame(out)
+
+# Phase plane (S vs I), all compartments, and cumulative deaths (D)
+plot(Result[["S"]], Result[["I"]], type = "l", xlab = "S", ylab = "I")
+plot(out)
+plot(Result[["time"]], Result[["D"]], type = "l", ylim = c(0, 400), 
+     xlab = "Time", ylab = "Cumulative Deaths (D)")
+```
+
+## 2. Mutually Exclusive Death and Recovery Rates (`SIR_model2`)
+To explicitly control the Case Fatality Ratio (`phi = 0.1`), we weight recovery by `(1 - phi)` and death by `phi`.
+
+```{r mutually-exclusive}
+SIR_model2 <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    lam <- parameters['beta'] * I / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - (1 - phi) * tau * I - delta * phi * I - mu * I 
+    dR <- (1 - phi) * tau * I - mu * R
+    dD <- delta * phi * I
+    
+    list(c(dS, dI, dR, dD))
+  }) 
+}
+
+parameters2 <- c(
+  mu = (1 / (50 * 52 * 7)),    
+  beta = 0.25,              
+  tau = 1 / 10,
+  delta = 1 / 10,
+  phi = 1 / 10   # Target Case Fatality Ratio = 10%
+)
+
+R0 <- parameters2['beta'] / (parameters2['tau'] + parameters2['mu'])
+R0
+
+out2 <- deSolve::ode(y = istate, times = tps, func = SIR_model2, parms = parameters2) 
+Result2 <- as.data.frame(out2)
+
+plot(out2)
+plot(Result2[["S"]], Result2[["I"]], type = "l", xlab = "S", ylab = "I")
+
+# Compare cumulative deaths: Model 1 (black, ~50% CFR) vs Model 2 (red, 10% CFR)
+plot(Result[["time"]], Result[["D"]], type = "l", ylim = c(0, 400), 
+     xlab = "Time", ylab = "Cumulative Deaths (D)")
+lines(Result2[["time"]], Result2[["D"]], col = "red", lwd = 2)
+
+# Check realized Case Fatality Ratio: D / (D + R) at the end of the outbreak
+# Model 1 gives ~0.50 (50%), whereas Model 2 gives ~0.10 (matches phi = 0.1!)
+tail(Result[["D"]], 1) / (tail(Result[["D"]], 1) + tail(Result[["R"]], 1))
+tail(Result2[["D"]], 1) / (tail(Result2[["D"]], 1) + tail(Result2[["R"]], 1))
+```
+
+## 3. Imported Infections & Sub-Threshold Persistence (`R0 < 1`)
+Adding `imp` external infectious cases to the force of infection (`beta * (I + imp) / P`) allows transmission to persist even when local `beta = 0.09` (`R0 < 1`).
+
+```{r imported-cases}
+SIR_model2_import <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    P <- (S + I + R)
+    lam <- parameters['beta'] * (I + imp) / P
+    
+    dS <- mu * P - mu * S - lam * S         
+    dI <- lam * S - (1 - phi) * tau * I - delta * phi * I - mu * I 
+    dR <- (1 - phi) * tau * I - mu * R
+    dD <- delta * phi * I
+    
+    list(c(dS, dI, dR, dD))
+  }) 
+}
+
+# Compare phase plane with 0 imports (black) vs 10 constant imports (magenta)
+parameters2['imp'] <- 10
+out2_import <- deSolve::ode(y = istate, times = tps, func = SIR_model2_import, parms = parameters2) 
+Result2_import <- as.data.frame(out2_import)
+
+plot(Result2[["S"]], Result2[["I"]], type = "l", ylim = c(0, 300), xlab = "S", ylab = "I")
+lines(Result2_import[["S"]], Result2_import[["I"]], col = "magenta", lwd = 2)
+
+# Lower beta to 0.09 (so R0 < 1) and loop over importation rates from 0 to 10
+parameters2['beta'] <- 0.09
+import_vector <- seq(0, 10, by = 1)
+result_import <- data.frame(time = numeric(0), I = numeric(0), imp = numeric(0))
+
+for (i in 1:length(import_vector)) {
+  parameters2["imp"] <- import_vector[i]
+  out_aux <- deSolve::ode(y = istate, times = tps, func = SIR_model2_import, parms = parameters2) 
+  aux_mat <- data.frame(time = out_aux[, 1], I = out_aux[, 3], imp = import_vector[i])
+  result_import <- rbind(result_import, aux_mat)
+}
+
+# Plot local prevalence I(t) across importation levels when R0 < 1
+ggplot(result_import) +
+  geom_line(aes(x = time, y = I, colour = as.factor(imp))) +
+  labs(title = "Sub-Threshold Persistence (R0 < 1) Driven by Imported Cases",
+       x = "Time (days)", y = "Local Infectious (I)", colour = "Imported Cases (imp)") +
+  theme_minimal()
+```

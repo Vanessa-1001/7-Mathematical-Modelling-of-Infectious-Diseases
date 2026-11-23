@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Age-dependent models</title>
+  <style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } 
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.at { color: #204a87; } 
+code span.bn { color: #0000cf; } 
+code span.cf { color: #204a87; font-weight: bold; } 
+code span.ch { color: #4e9a06; } 
+code span.cn { color: #8f5902; } 
+code span.co { color: #8f5902; font-style: italic; } 
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.dt { color: #204a87; } 
+code span.dv { color: #0000cf; } 
+code span.er { color: #a40000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #0000cf; } 
+code span.fu { color: #204a87; font-weight: bold; } 
+code span.im { } 
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } 
+code span.kw { color: #204a87; font-weight: bold; } 
+code span.op { color: #ce5c00; font-weight: bold; } 
+code span.ot { color: #8f5902; } 
+code span.pp { color: #8f5902; font-style: italic; } 
+code span.sc { color: #ce5c00; font-weight: bold; } 
+code span.ss { color: #4e9a06; } 
+code span.st { color: #4e9a06; } 
+code span.va { color: #000000; } 
+code span.vs { color: #4e9a06; } 
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">body{font-family:Calibri,Arial,sans-serif;max-width:900px;margin:2rem auto;padding:0 1.2rem;line-height:1.55;color:#252E36}
+h1{color:#193049;border-bottom:3px solid #237D84;padding-bottom:.3rem}
+h2{color:#237D84;margin-top:2rem}
+pre{background:#EFF4F6;border:1px solid #DAE4E8;border-radius:6px;padding:.8rem;overflow-x:auto}
+code{font-size:.92em}
+img{max-width:100%}
+figure{margin:1.2rem 0;text-align:center}
+figcaption{color:#647380;font-size:.9em}
+#TOC{background:#EFF4F6;border-radius:6px;padding:.8rem 1.2rem;margin-bottom:1.5rem}
+header .subtitle{color:#647380;font-size:1.1rem}
+</style>
+  <style type="text/css">.answer{min-height:3.9cm;border:2px solid #237D84;border-radius:6px;background:#ffffff;padding:.6rem .9rem;margin:1rem 0 1.6rem 0;color:#647380}
+.answer p{margin:0;font-weight:700;font-size:.9em;color:#237D84}
+</style>
+<style>
+.answer label{display:block;font-weight:700;font-size:.9em;color:#237D84;margin-bottom:.4rem}
+.answer textarea{width:100%;box-sizing:border-box;min-height:140px;font:inherit;color:#252E36;border:1px solid #DAE4E8;border-radius:4px;padding:.5rem;resize:vertical}
+.answer{padding-bottom:.9rem}
+#toolbar{position:sticky;top:0;z-index:10;background:#193049;color:#fff;padding:.6rem 1rem;margin:0 -1.2rem 1.2rem;display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;font-size:.95rem}
+#toolbar input{padding:.35rem .5rem;border-radius:4px;border:0;min-width:14rem}
+#toolbar button{background:#237D84;color:#fff;border:0;border-radius:4px;padding:.45rem .8rem;cursor:pointer;font-size:.95rem}
+#toolbar button:hover{background:#2c9aa2}
+#toolbar #status{margin-left:auto;color:#9fd3d6;font-size:.85rem}
+pre{position:relative}
+.copybtn{position:absolute;top:.4rem;right:.4rem;font-size:.75rem;background:#fff;border:1px solid #DAE4E8;border-radius:4px;padding:.15rem .5rem;cursor:pointer;color:#237D84}
+@media print{#toolbar,.copybtn{display:none}.answer textarea{border:1px solid #999;resize:none}}
+</style></head>
+<body><div id="toolbar"><label for="student-name">Name:</label><input id="student-name" type="text" placeholder="Your name"><button id="dl" type="button">Download my answers</button><button id="pr" type="button">Print / save as PDF</button><span id="status">Answers save automatically on this computer</span></div>
+<p><em>Type your answers in the boxes. To run the R code, copy it into RStudio (use the Copy button on each code block). When you have finished, click <b>Download my answers</b> or use <b>Print / save as PDF</b>.</em></p>
+<header id="title-block-header">
+<h1 class="title">Age-dependent models</h1>
+<p class="subtitle">Practical session: Mathematical Modelling for Global
+Health</p>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#population-structure-births-and-mortality" id="toc-population-structure-births-and-mortality">Population structure,
+births and mortality</a></li>
+<li><a href="#contact-matrices" id="toc-contact-matrices">Contact
+matrices</a></li>
+<li><a href="#ageing-between-age-groups" id="toc-ageing-between-age-groups">Ageing between age groups</a></li>
+<li><a href="#initial-conditions" id="toc-initial-conditions">Initial
+conditions</a></li>
+<li><a href="#running-the-model" id="toc-running-the-model">Running the
+model</a></li>
+<li><a href="#interventions" id="toc-interventions">Interventions</a></li>
+</ul>
+</nav>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"></code></pre></div>
+<p><strong>How to use this document.</strong> Work through the sections
+in order and run the code chunks interactively in RStudio (use the green
+arrow on each chunk). Chunks are not run automatically when you knit.
+Write your answers in the boxes marked “Your answer” (in the
+<code>.Rmd</code> file, type underneath that line). The
+<code>.csv</code> files named in the code need to be in your working
+directory.</p>
+<h1 id="population-structure-births-and-mortality">Population structure,
+births and mortality</h1>
+<p>Let’s create a synthetic population following the frequencies of
+people in each age group as given by UN data: <a href="https://population.un.org/wpp/Download/Standard/Population/" class="uri">https://population.un.org/wpp/Download/Standard/Population/</a></p>
+<p>We should note that the UN data is in thousands, so we need to scale
+the population accordingly. Given the population age structure, we can
+easily calculate the number of age groups, <code>A</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># population structure in 2020</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>popstruc <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;pop_structure_X.csv&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># convert from 1000s to total numbers</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>popstruc[, <span class="dv">2</span>] <span class="ot">&lt;-</span> popstruc[, <span class="dv">2</span>] <span class="sc">*</span> <span class="dv">1000</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">length</span>(popstruc[, <span class="dv">2</span>])</span></code></pre></div>
+<p>Here, we are also not sticking to a constant population size
+assumption. The same data source informs the number of births per time
+unit given the age of the mother. Again, notice the strange units the
+data comes in, and what we need to do to inform the model parameters
+appropriately. The same can be said for mortality per person per time
+unit, our “natural” mortality rate (i.e., not disease induced).</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># births by age of mother</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>popbirth <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;pop_birth_X.csv&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># convert from 1000s per 5 year period to per person per day</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>popbirth[, <span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="sc">*</span> popbirth[, <span class="dv">2</span>] <span class="sc">/</span> (<span class="dv">5</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>] <span class="sc">*</span> <span class="fl">365.25</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># natural mortality per person per year</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>popmort <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;pop_mort_X.csv&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># convert from 1000s per 5 year period to per person per day</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>popmort[, <span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="sc">*</span> popmort[, <span class="dv">2</span>] <span class="sc">/</span> (<span class="dv">5</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>] <span class="sc">*</span> <span class="fl">365.25</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>mort <span class="ot">&lt;-</span> popmort[, <span class="dv">2</span>]</span></code></pre></div>
+<h1 id="contact-matrices">Contact matrices</h1>
+<p>As we have done before, let’s import the relevant age contact
+matrices into the model. Note that there is a difference in the number
+of age groups in the population structure vs the contact data, where the
+contact matrices are cropped at 75+.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>c_home   <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">read.csv</span>(<span class="st">&quot;contact_home_X.csv&quot;</span>,   <span class="at">header =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>c_school <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">read.csv</span>(<span class="st">&quot;contact_school_X.csv&quot;</span>, <span class="at">header =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>c_work   <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">read.csv</span>(<span class="st">&quot;contact_work_X.csv&quot;</span>,   <span class="at">header =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>c_other  <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">read.csv</span>(<span class="st">&quot;contact_other_X.csv&quot;</span>,  <span class="at">header =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>nce <span class="ot">&lt;-</span> A <span class="sc">-</span> <span class="fu">length</span>(c_home[<span class="dv">1</span>, ])</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># full-size matrices, starting from the contact data we have</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>contact_home   <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, A, A); contact_home[<span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce), <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)]   <span class="ot">&lt;-</span> c_home</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>contact_school <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, A, A); contact_school[<span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce), <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)] <span class="ot">&lt;-</span> c_school</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>contact_work   <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, A, A); contact_work[<span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce), <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)]   <span class="ot">&lt;-</span> c_work</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>contact_other  <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, A, A); contact_other[<span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce), <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)]  <span class="ot">&lt;-</span> c_other</span></code></pre></div>
+<p><strong>How is the code filling in the remaining age group contacts
+in the lines of code below?</strong></p>
+<div class="answer"><label>Your answer: Extending the contact matrices</label><textarea rows="6" placeholder="Type your answer here" data-q="Extending the contact matrices"></textarea></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> (A <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span> nce)<span class="sc">:</span>A){</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)){</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    contact_home[i, j]   <span class="ot">&lt;-</span> c_home[(A <span class="sc">-</span> nce), j]</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    contact_school[i, j] <span class="ot">&lt;-</span> c_school[(A <span class="sc">-</span> nce), j]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    contact_work[i, j]   <span class="ot">&lt;-</span> c_work[(A <span class="sc">-</span> nce), j]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    contact_other[i, j]  <span class="ot">&lt;-</span> c_other[(A <span class="sc">-</span> nce), j]</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>(A <span class="sc">-</span> nce)){</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> (A <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span> nce)<span class="sc">:</span>A){</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    contact_home[i, j]   <span class="ot">&lt;-</span> c_home[i, (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    contact_school[i, j] <span class="ot">&lt;-</span> c_school[i, (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    contact_work[i, j]   <span class="ot">&lt;-</span> c_work[i, (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    contact_other[i, j]  <span class="ot">&lt;-</span> c_other[i, (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> (A <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span> nce)<span class="sc">:</span>A){</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> (A <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span> nce)<span class="sc">:</span>A){</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    contact_home[i, j]   <span class="ot">&lt;-</span> c_home[(A <span class="sc">-</span> nce), (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    contact_school[i, j] <span class="ot">&lt;-</span> c_school[(A <span class="sc">-</span> nce), (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    contact_work[i, j]   <span class="ot">&lt;-</span> c_work[(A <span class="sc">-</span> nce), (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    contact_other[i, j]  <span class="ot">&lt;-</span> c_other[(A <span class="sc">-</span> nce), (A <span class="sc">-</span> nce)]</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<h1 id="ageing-between-age-groups">Ageing between age groups</h1>
+<p>One very important aspect of an age-dependent model is how you
+implement transition between age groups. <strong>How would you describe
+the way it is implemented in the script?</strong></p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># per year ageing matrix</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>dd <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">1</span><span class="sc">:</span>A) <span class="sc">/</span> <span class="fu">seq</span>(<span class="dv">1</span><span class="sc">:</span>A)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ageing <span class="ot">&lt;-</span> <span class="fu">t</span>(<span class="fu">diff</span>(<span class="fu">diag</span>(dd), <span class="at">lag =</span> <span class="dv">1</span>) <span class="sc">/</span> (<span class="dv">5</span> <span class="sc">*</span> <span class="fl">365.25</span>))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>ageing <span class="ot">&lt;-</span> <span class="fu">cbind</span>(ageing, <span class="dv">0</span> <span class="sc">*</span> <span class="fu">seq</span>(<span class="dv">1</span><span class="sc">:</span>A))  <span class="co"># no ageing from last compartment</span></span></code></pre></div>
+<div class="answer"><label>Your answer: Ageing between age groups</label><textarea rows="6" placeholder="Type your answer here" data-q="Ageing between age groups"></textarea></div>
+<h1 id="initial-conditions">Initial conditions</h1>
+<p>Next, we can just write down our set of initial conditions and
+parameter values. Note that we can initialise infection in specific age
+groups. <strong>Do you think that could potentially have an impact in
+the seeding of infections?</strong></p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>initP <span class="ot">&lt;-</span> <span class="fu">sum</span>(popstruc[, <span class="dv">2</span>])  <span class="co"># population size</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ageindcase <span class="ot">&lt;-</span> <span class="dv">20</span>             <span class="co"># age of index case (years)</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>aci <span class="ot">&lt;-</span> <span class="fu">floor</span>((ageindcase <span class="sc">/</span> <span class="dv">5</span>) <span class="sc">+</span> <span class="dv">2</span>)  <span class="co"># age class of index case</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># MODEL INITIAL CONDITIONS</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>initI  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Infected and symptomatic</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>initE  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Incubating</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>initE[aci] <span class="ot">&lt;-</span> <span class="dv">1</span>              <span class="co"># place random index case in E compartment</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>initR  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Immune</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>initH  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Hospitalised</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>initM  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Will die</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>initC  <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Cumulative cases (true)</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>initCM <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="sc">*</span> popstruc[, <span class="dv">2</span>]  <span class="co"># Cumulative deaths (true)</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>initS  <span class="ot">&lt;-</span> popstruc[, <span class="dv">2</span>] <span class="sc">-</span> initE <span class="sc">-</span> initI <span class="sc">-</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>          initR <span class="sc">-</span> initH <span class="sc">-</span> initM  <span class="co"># Susceptible (non-immune)</span></span></code></pre></div>
+<div class="answer"><label>Your answer: Seeding the infection</label><textarea rows="6" placeholder="Type your answer here" data-q="Seeding the infection"></textarea></div>
+<h1 id="running-the-model">Running the model</h1>
+<p>Following the implementation of the age-dependent model using indices
+for differential equations (as you did for the spatial model), run the
+<code>ode</code> function and plot:</p>
+<ol type="1">
+<li>Total population size</li>
+<li>Daily reported incidence</li>
+<li>Hospital occupancy</li>
+<li>Cumulative mortality per age group</li>
+</ol>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># total population</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>pop <span class="ot">&lt;-</span> out[, (Sindex <span class="sc">+</span> <span class="dv">1</span>)] <span class="sc">+</span> out[, (Eindex <span class="sc">+</span> <span class="dv">1</span>)] <span class="sc">+</span> out[, (Iindex <span class="sc">+</span> <span class="dv">1</span>)] <span class="sc">+</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>       out[, (Rindex <span class="sc">+</span> <span class="dv">1</span>)] <span class="sc">+</span> out[, (Hindex <span class="sc">+</span> <span class="dv">1</span>)]</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>tpop <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(pop)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>time <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(out[, <span class="dv">1</span>] <span class="sc">+</span> startdate)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># daily incidence</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>inc <span class="ot">&lt;-</span> parameters[<span class="st">&quot;report&quot;</span>] <span class="sc">*</span> parameters[<span class="st">&quot;gamma&quot;</span>] <span class="sc">*</span> out[, (Eindex <span class="sc">+</span> <span class="dv">1</span>)]</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>dailyinc <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(inc)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>hospreq <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(out[, (Hindex <span class="sc">+</span> <span class="dv">1</span>)])      <span class="co"># requirement for hospital beds</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>cmortality <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(out[, (CMindex <span class="sc">+</span> <span class="dv">1</span>)])  <span class="co"># cumulative mortality</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="do">## plot incidence over time</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">rowSums</span>(inc))</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co"># plot hospital occupancy against the number of hospital beds available</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(hospreq)</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="do">#### age groups</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>deaths <span class="ot">&lt;-</span> (out[, CMindex <span class="sc">+</span> <span class="dv">1</span>])</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(deaths) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;0-4&quot;</span>, <span class="st">&quot;5-9&quot;</span>, <span class="st">&quot;10-14&quot;</span>, <span class="st">&quot;15-19&quot;</span>, <span class="st">&quot;20-24&quot;</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>                      <span class="st">&quot;25-29&quot;</span>, <span class="st">&quot;30-34&quot;</span>, <span class="st">&quot;35-39&quot;</span>, <span class="st">&quot;40-44&quot;</span>, <span class="st">&quot;45-49&quot;</span>, <span class="st">&quot;50-54&quot;</span>,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>                      <span class="st">&quot;55-59&quot;</span>, <span class="st">&quot;60-64&quot;</span>, <span class="st">&quot;65-69&quot;</span>, <span class="st">&quot;70-74&quot;</span>, <span class="st">&quot;75-79&quot;</span>, <span class="st">&quot;80-84&quot;</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>                      <span class="st">&quot;85-89&quot;</span>, <span class="st">&quot;90-94&quot;</span>, <span class="st">&quot;95-99&quot;</span>, <span class="st">&quot;100+&quot;</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>deaths_prop <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">tail</span>(deaths, <span class="dv">1</span>), <span class="dv">0</span>) <span class="sc">/</span> <span class="fu">sum</span>(<span class="fu">round</span>(<span class="fu">tail</span>(deaths, <span class="dv">1</span>), <span class="dv">0</span>))</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="fu">barplot</span>(deaths_prop)</span></code></pre></div>
+<h1 id="interventions">Interventions</h1>
+<p>Now, let’s include two interventions in the model: social distancing
+(that works like a lockdown) and shielding of the elderly. For that we
+will need a different set of parameters and a new model function.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>parameters_intervention <span class="ot">&lt;-</span> parameters</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>parameters_intervention[<span class="st">&quot;social_distancing_start&quot;</span>]  <span class="ot">&lt;-</span> <span class="dv">20</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>parameters_intervention[<span class="st">&quot;social_distancing_end&quot;</span>]    <span class="ot">&lt;-</span> <span class="dv">80</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>parameters_intervention[<span class="st">&quot;social_distancing_effect&quot;</span>] <span class="ot">&lt;-</span> <span class="fl">0.15</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>parameters_intervention[<span class="st">&quot;shielding_start&quot;</span>] <span class="ot">&lt;-</span> <span class="fl">1e100</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>parameters_intervention[<span class="st">&quot;shielding_end&quot;</span>]   <span class="ot">&lt;-</span> <span class="dv">80</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>shielding_effect <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="at">by =</span> <span class="fl">0.05</span>)  <span class="co"># one value per age group (0 = no shielding, 1 = full)</span></span></code></pre></div>
+<p>Look at how those are implemented in the model. Social distancing
+affects contacts across all age groups, whereas shielding needs to be a
+vector, reflecting reduced contacts for each age group once that
+intervention is active.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>social_distancing <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(t <span class="sc">&gt;</span> social_distancing_start <span class="sc">&amp;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                            t <span class="sc">&lt;</span> social_distancing_end,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                            social_distancing_effect, <span class="dv">1</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>shielding <span class="ot">&lt;-</span> <span class="cf">if</span> (t <span class="sc">&gt;</span> shielding_start <span class="sc">&amp;</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                 t <span class="sc">&lt;</span> shielding_end) {</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  (<span class="dv">1</span> <span class="sc">-</span> shielding_effect)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="dv">1</span>, A)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>lam <span class="ot">&lt;-</span> p <span class="sc">*</span> social_distancing <span class="sc">*</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>       contacts <span class="sc">%*%</span> (shielding <span class="sc">*</span> (rho <span class="sc">*</span> E <span class="sc">+</span> I <span class="sc">+</span> rhos <span class="sc">*</span> H) <span class="sc">/</span> P)</span></code></pre></div>
+<p><strong>Compare the social distancing strategy against shielding.
+Under what conditions (parameter ranges) and intervention logistics is
+the shielding strategy preferable?</strong></p>
+<div class="answer"><label>Your answer: Social distancing vs shielding</label><textarea rows="6" placeholder="Type your answer here" data-q="Social distancing vs shielding"></textarea></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">rowSums</span>(deaths), <span class="at">type =</span> <span class="st">&quot;l&quot;</span>, <span class="at">col =</span> <span class="st">&quot;red&quot;</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(<span class="fu">rowSums</span>(deaths_interv), <span class="at">type =</span> <span class="st">&quot;l&quot;</span>, <span class="at">col =</span> <span class="st">&quot;blue&quot;</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(<span class="fu">rowSums</span>(deaths_interv_shielding), <span class="at">type =</span> <span class="st">&quot;l&quot;</span>, <span class="at">col =</span> <span class="st">&quot;seagreen&quot;</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;topright&quot;</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">&quot;Control&quot;</span>, <span class="st">&quot;Lockdown&quot;</span>, <span class="st">&quot;Shielding&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">&quot;red&quot;</span>, <span class="st">&quot;blue&quot;</span>, <span class="st">&quot;seagreen&quot;</span>))</span></code></pre></div>
+<p><strong>What epidemiological metric would you focus on? Should it be
+unidimensional, i.e., only care about deaths?</strong></p>
+<div class="answer"><label>Your answer: Choice of metric</label><textarea rows="6" placeholder="Type your answer here" data-q="Choice of metric"></textarea></div>
+<script>
+(function(){
+var KEY='age_dependent_worksheet_v1',store={};
+try{store=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+var st=document.getElementById('status');
+function say(t){st.textContent=t}
+function grow(t){t.style.height='auto';t.style.height=Math.max(t.scrollHeight+4,140)+'px'}
+var nm=document.getElementById('student-name');
+if(store.name)nm.value=store.name;
+nm.addEventListener('input',function(){store.name=nm.value;save()});
+var tas=document.querySelectorAll('.answer textarea');
+tas.forEach(function(ta,i){
+ if(store['a'+i])ta.value=store['a'+i];
+ grow(ta);
+ ta.addEventListener('input',function(){store['a'+i]=ta.value;save();grow(ta);say('Saved on this computer')});
+});
+document.querySelectorAll('pre').forEach(function(p){
+ var b=document.createElement('button');b.type='button';b.className='copybtn';b.textContent='Copy';
+ b.onclick=function(){var c=p.querySelector('code');navigator.clipboard&&navigator.clipboard.writeText((c||p).innerText).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)})};
+ p.appendChild(b);
+});
+document.getElementById('pr').onclick=function(){tas.forEach(grow);window.print()};
+document.getElementById('dl').onclick=function(){
+ var clone=document.documentElement.cloneNode(true);
+ var src=document.querySelectorAll('textarea'),dst=clone.querySelectorAll('textarea');
+ for(var i=0;i<dst.length;i++){dst[i].textContent=src[i].value}
+ clone.querySelector('#student-name').setAttribute('value',nm.value);
+ clone.querySelectorAll('.copybtn').forEach(function(x){x.remove()});
+ var name=(nm.value||'worksheet').replace(/[^A-Za-z0-9_-]+/g,'_');
+ var blob=new Blob(['<!DOCTYPE html>\n'+clone.outerHTML],{type:'text/html'});
+ var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'_Age_dependent_models_answers.html';
+ document.body.appendChild(a);a.click();a.remove();say('Downloaded');
+};
+})();
+</script></body>
+</html>
