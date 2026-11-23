@@ -1,0 +1,514 @@
+---
+title: "Day 2: SIRS Model - Model Structure and Dynamic Implications"
+author: "My Mathematical Modelling Notes"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+# 1. Learning objectives
+
+By the end of this practical, I should be able to:
+
+- Explain the Susceptible, Infectious and Recovered compartments.
+- Explain why the SIRS model allows recovered people to become susceptible again.
+- Interpret the parameters mu, beta, tau and alpha, including their units.
+- Explain the SIRS differential equations term by term.
+- Solve the model using `deSolve::ode()`.
+- Explore how beta, alpha and the basic reproduction number affect long-term infection.
+- Explain the difference between a final simulated value and a confirmed equilibrium.
+
+# 2. The SIRS model structure
+
+The SIRS model has three compartments:
+
+- **S – Susceptible:** people who can acquire the infection.
+- **I – Infectious:** people who currently have the infection and can transmit it.
+- **R – Recovered:** people who have recovered and are temporarily immune.
+
+The transitions are:
+
+\[
+S \xrightarrow{\lambda S} I \xrightarrow{\tau I} R
+\xrightarrow{\alpha R} S
+\]
+
+The distinctive feature of SIRS is the return from R to S. Immunity is assumed to wane, so recovered people can become susceptible again.
+
+Natural births enter S at rate `mu * P`, while natural deaths leave each compartment at rate `mu` per person.
+
+# 3. Load the package
+
+```{r setup, message=FALSE}
+# deSolve contains the ode() numerical solver used below.
+# Install it once if needed by running:
+# install.packages("deSolve")
+library(deSolve)
+```
+
+# 4. Define initial population sizes
+
+```{r initial-conditions}
+# Total population at the start of the simulation.
+initP <- 999
+
+# One person is initially infectious.
+initI <- 1
+
+# Nobody has recovered at the start.
+initR <- 0
+
+# The rest of the population is susceptible.
+initS <- initP - initI - initR
+
+# Store initial compartment sizes in a named vector.
+# The order here must match the order returned by the model function.
+istate <- c(S = initS, I = initI, R = initR)
+
+# Display the initial conditions and check their total.
+istate
+sum(istate)
+```
+
+The initial population is 999: 998 susceptible, 1 infectious and 0 recovered.
+
+# 5. Define model parameters
+
+```{r parameters}
+# Natural birth and death rate per day.
+# The assumed average lifespan is 50 years, converted to days.
+mu <- 1 / (50 * 52 * 7)
+
+# Transmission parameter per day.
+beta <- 0.25
+
+# Recovery rate per day: 1/10 means a mean infectious period of 10 days.
+tau <- 1 / 10
+
+# Rate of losing immunity per day: 1/150 means a mean immune period of 150 days.
+alpha <- 1 / 150
+
+# Store parameters in a named vector for deSolve.
+parameters <- c(mu = mu, beta = beta, tau = tau, alpha = alpha)
+
+parameters
+```
+
+For constant transition rates, the reciprocal of a rate gives the mean waiting time. It does not mean every individual has exactly that duration.
+
+| Parameter | Value | Meaning | Units |
+|---|---:|---|---|
+| `mu` (\(\mu\)) | \(1/18,200\) | Natural birth/death rate | per day |
+| `beta` (\(\beta\)) | 0.25 | Transmission parameter | per day |
+| `tau` (\(\tau\)) | 0.1 | Recovery rate | per day |
+| `alpha` (\(\alpha\)) | \(1/150\) | Loss-of-immunity rate | per day |
+
+# 6. SIRS equations
+
+Total population:
+
+\[
+P = S + I + R
+\]
+
+Force of infection:
+
+\[
+\lambda = \frac{\beta I}{P}
+\]
+
+The differential equations are:
+
+\[
+\frac{dS}{dt}=\mu P-\mu S-\lambda S+\alpha R
+\]
+
+\[
+\frac{dI}{dt}=\lambda S-\tau I-\mu I
+\]
+
+\[
+\frac{dR}{dt}=\tau I-\mu R-\alpha R
+\]
+
+Term meanings:
+
+- `mu * P`: births entering S.
+- `-mu * S`, `-mu * I`, `-mu * R`: natural deaths in each compartment.
+- `lambda * S`: new infections moving from S to I.
+- `tau * I`: recoveries moving from I to R.
+- `alpha * R`: loss of immunity moving people from R back to S.
+
+The alpha flow is added to the S equation and subtracted from the R equation because it is the same flow between compartments.
+
+# 7. Write the SIRS model function
+
+```{r sirs-function}
+SIRS_model <- function(t, state, parameters) {
+
+  # Make the state variables and parameters available by name.
+  with(as.list(c(state, parameters)), {
+
+    # Calculate the total population at this time.
+    P <- S + I + R
+
+    # Force of infection: infection pressure per susceptible person.
+    lam <- beta * I / P
+
+    # Susceptible change:
+    # births - natural deaths - new infections + waning immunity.
+    dS <- mu * P - mu * S - lam * S + alpha * R
+
+    # Infectious change:
+    # new infections - recoveries - natural deaths.
+    dI <- lam * S - tau * I - mu * I
+
+    # Recovered change:
+    # recoveries - natural deaths - loss of immunity.
+    dR <- tau * I - mu * R - alpha * R
+
+    # Return derivatives in the same S, I, R order as istate.
+    list(c(dS, dI, dR))
+  })
+}
+```
+
+# 8. Calculate the basic reproduction number
+
+For this model, at the disease-free equilibrium where the population is susceptible:
+
+\[
+R_0 = \frac{\beta}{\tau + \mu}
+\]
+
+```{r calculate-r0}
+R0 <- parameters["beta"] / (parameters["tau"] + parameters["mu"])
+R0
+```
+
+With the given parameters, \(R_0\) is approximately 2.50. Under the model assumptions, this is above 1, so infection can invade a fully susceptible population. The value of \(R_0\) is not the number of secondary cases generated at every stage of an epidemic; that depends on the susceptible fraction and other conditions.
+
+# 9. Choose the simulation time and solve the model
+
+```{r solve-baseline}
+# Simulate from day 0 to 3 years (3 * 365 = 1,095 days).
+time_start <- 0
+time_stop <- 365 * 3
+
+# Ask the solver to return values every 0.1 day.
+deltat <- 0.1
+tps <- seq(time_start, time_stop, by = deltat)
+
+# Solve the SIRS differential equations.
+out <- deSolve::ode(
+  y = istate,
+  times = tps,
+  func = SIRS_model,
+  parms = parameters
+)
+
+# Convert solver output to a data frame for easier access.
+out <- as.data.frame(out)
+
+# Check column names and first rows.
+colnames(out)
+head(out)
+```
+
+The output columns are `time`, `S`, `I` and `R`. Using names such as `out$I` is safer and clearer than relying on column positions.
+
+# 10. Plot all three compartments
+
+```{r plot-compartments}
+# Plot S first, setting the y-axis range to include all compartments.
+plot(
+  out$time, out$S,
+  type = "l", col = "blue", lwd = 2,
+  ylim = range(out[, c("S", "I", "R")]),
+  xlab = "Time (days)", ylab = "Number of people",
+  main = "SIRS model: all compartments"
+)
+
+# Add the infectious and recovered compartments.
+lines(out$time, out$I, col = "red", lwd = 2)
+lines(out$time, out$R, col = "darkgreen", lwd = 2)
+
+# Identify each curve.
+legend(
+  "right",
+  legend = c("Susceptible (S)", "Infectious (I)", "Recovered (R)"),
+  col = c("blue", "red", "darkgreen"),
+  lty = 1, lwd = 2
+)
+```
+
+# 11. Inspect the infectious population at the end
+
+```{r final-infectious}
+# The third output column is I, but use the column name for clarity.
+# This is the infectious population at the final simulated time,
+# not automatically proof that the system has reached equilibrium.
+final_infectious <- tail(out$I, 1)
+final_infectious
+
+# Compare the last few infectious values to see whether they are changing.
+tail(data.frame(time = out$time, I = out$I), 10)
+```
+
+# 12. Check total population conservation
+
+```{r population-check}
+# Add S, I and R at every output time.
+out$total_population <- out$S + out$I + out$R
+
+# Inspect the first totals and the range over the simulation.
+head(out$total_population)
+range(out$total_population)
+
+# Maximum deviation from the initial total population.
+max(abs(out$total_population - initP))
+```
+
+Births are added at rate `mu * P` and natural deaths occur at total rate `mu * (S + I + R)`. These balance in this model, so total population should remain approximately constant, allowing for small numerical solver error.
+
+# 13. Two-parameter experiment: beta and alpha
+
+This experiment changes transmission (`beta`) and loss of immunity (`alpha`) together. The result stored in each cell is the infectious population at the final simulation time.
+
+```{r beta-alpha-grid}
+# Create five beta values from 50% to 150% of baseline.
+beta_vector <- seq(0.5, 1.5, by = 0.25) * parameters["beta"]
+
+# Create five alpha values from 50% to 150% of baseline.
+# Rounding is only for convenient display.
+alpha_vector <- round(
+  seq(0.5, 1.5, by = 0.25) * parameters["alpha"],
+  4
+)
+
+# Create an empty matrix: rows correspond to beta, columns to alpha.
+result <- matrix(
+  NA_real_,
+  nrow = length(beta_vector),
+  ncol = length(alpha_vector),
+  dimnames = list(
+    beta = as.character(beta_vector),
+    alpha = as.character(alpha_vector)
+  )
+)
+
+# Run the model for every beta-alpha combination.
+for (i in seq_along(beta_vector)) {
+  for (j in seq_along(alpha_vector)) {
+
+    # Start each run from the baseline parameter vector.
+    scenario_parameters <- parameters
+
+    # Change only the two parameters being investigated.
+    scenario_parameters["beta"] <- beta_vector[i]
+    scenario_parameters["alpha"] <- alpha_vector[j]
+
+    # Solve the model for this parameter combination.
+    scenario_out <- deSolve::ode(
+      y = istate,
+      times = tps,
+      func = SIRS_model,
+      parms = scenario_parameters
+    )
+
+    # Store infectious population at the final simulated time.
+    result[i, j] <- tail(scenario_out[, "I"], 1)
+  }
+}
+
+# Inspect the matrix of results.
+result
+```
+
+# 14. Contour plot of the beta-alpha experiment
+
+```{r contour-base}
+# Use the actual parameter values for the x and y coordinates.
+# Transpose result so rows align with alpha and columns with beta.
+contour(
+  x = beta_vector,
+  y = alpha_vector,
+  z = t(result),
+  nlevels = 10,
+  xlab = expression(beta),
+  ylab = expression(alpha),
+  main = "Final infectious population across beta and alpha"
+)
+```
+
+A contour plot displays combinations of beta and alpha that produce the same final infectious population. Interpret it as a two-parameter sensitivity analysis. Remember that the plotted outcome is the value at the end of the chosen simulation period; it is an equilibrium value only if the trajectories have stabilised.
+
+# 15. Optional interactive contour plot with Plotly
+
+```{r plotly-contour, eval=FALSE}
+# Install plotly once if needed:
+# install.packages("plotly")
+
+library(plotly)
+
+# The transpose aligns matrix rows with alpha (y) and columns with beta (x).
+fig <- plot_ly(
+  x = beta_vector,
+  y = alpha_vector,
+  z = ~t(result),
+  type = "contour"
+) %>%
+  colorbar(title = "Infectious people at final time") %>%
+  layout(
+    xaxis = list(title = "Beta (transmission parameter)"),
+    yaxis = list(title = "Alpha (loss-of-immunity rate)")
+  )
+
+fig
+```
+
+This chunk is set to `eval=FALSE` so the document can knit without Plotly installed. Change it to `eval=TRUE` if Plotly is installed and you want the interactive graph.
+
+# 16. Re-express the model using R0 as an input
+
+The lecturer's second model uses `R0 * tau` in place of beta. Its force of infection is:
+
+\[
+\lambda = \frac{R_0\tau I}{P}
+\]
+
+This corresponds to the approximation \(\beta \approx R_0\tau\). The exact relationship for the original model with natural mortality is \(\beta = R_0(\tau + \mu)\). Because mu is very small relative to tau here, the approximation is close.
+
+```{r sirs-r0-function}
+SIRS_model2 <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+
+    # Total population.
+    P <- S + I + R
+
+    # Force of infection expressed using R0 and tau.
+    lam <- (R0 * tau) * I / P
+
+    # Same SIRS flows as before.
+    dS <- mu * P - mu * S - lam * S + alpha * R
+    dI <- lam * S - tau * I - mu * I
+    dR <- tau * I - mu * R - alpha * R
+
+    list(c(dS, dI, dR))
+  })
+}
+
+# Define parameters for the R0-based model.
+parameters2 <- c(
+  mu = 1 / (50 * 52 * 7),
+  R0 = 2,
+  tau = 1 / 10,
+  alpha = 1 / 150
+)
+```
+
+# 17. Solve the R0-based model
+
+```{r solve-r0-model}
+# Simulate for 600 days, returning results every 0.1 day.
+time_stop2 <- 600
+tps2 <- seq(0, time_stop2, by = 0.1)
+
+out2 <- deSolve::ode(
+  y = istate,
+  times = tps2,
+  func = SIRS_model2,
+  parms = parameters2
+)
+
+out2 <- as.data.frame(out2)
+
+# Plot all compartments.
+plot(out2)
+
+# Infectious population at the final simulated time.
+tail(out2$I, 1)
+```
+
+# 18. Explore how R0 changes the final infectious population
+
+```{r r0-sensitivity}
+# Test R0 values from 0.2 to 3.8 in increments of 0.4.
+# This follows the lecturer's sequence: 0.1 to 2 by 0.2, multiplied by 2.
+r0_vector <- seq(0.1, 2, by = 0.2) * parameters2["R0"]
+
+# Create a vector to store the final infectious population for each R0.
+result2 <- numeric(length(r0_vector))
+
+for (i in seq_along(r0_vector)) {
+
+  # Copy baseline R0-model parameters for a clean run.
+  scenario_parameters2 <- parameters2
+
+  # Set the R0 value for this run.
+  scenario_parameters2["R0"] <- r0_vector[i]
+
+  # Solve the model.
+  scenario_out2 <- deSolve::ode(
+    y = istate,
+    times = tps2,
+    func = SIRS_model2,
+    parms = scenario_parameters2
+  )
+
+  # Store infectious population at the final simulated time.
+  result2[i] <- tail(scenario_out2[, "I"], 1)
+}
+
+# Plot final infectious population against R0.
+plot(
+  r0_vector, result2,
+  type = "b", pch = 16,
+  xlab = expression(R[0]),
+  ylab = "Infectious people at final time",
+  main = expression("Effect of " * R[0] * " on infection")
+)
+```
+
+For \(R_0 < 1\), infection is expected to die out in this model. For \(R_0 > 1\), sustained endemic infection can be possible because immunity wanes. A finite-time endpoint is not automatically the equilibrium, so compare the final values with the last section of each time series.
+
+# 19. Check whether a simulation has approached equilibrium
+
+```{r equilibrium-check}
+# Look at the final 10 infectious values from the baseline simulation.
+tail(data.frame(time = out$time, I = out$I), 10)
+
+# A small difference between the last two values suggests the curve
+# may be flattening, but inspect a longer time window as well.
+last_change <- tail(out$I, 1) - out$I[nrow(out) - 1]
+last_change
+```
+
+A numerical equilibrium is approached when the compartment values become approximately constant over time. A single last value does not establish this on its own.
+
+# 20. Interpretation and revision questions
+
+1. What does each of S, I and R represent?
+2. What is the additional transition in SIRS compared with SIR?
+3. What does alpha represent, and what happens to the mean duration of immunity if alpha increases?
+4. What does beta represent?
+5. Why does the alpha term appear positively in the S equation and negatively in the R equation?
+6. What does `tail(out[, 3], 1)` extract?
+7. Why does the lecturer use nested loops for beta and alpha?
+8. What does each cell of the `result` matrix represent?
+9. What information does a contour plot provide?
+10. What is the difference between a final simulated value and an equilibrium value?
+11. What does R0 greater than 1 suggest in a fully susceptible population?
+12. Why might the R0-based model use `R0 * tau` as an approximation to beta?
+
+# 21. Key takeaways
+
+- SIRS extends SIR by allowing recovered people to lose immunity and return to susceptibility.
+- Beta controls transmission, tau controls recovery, alpha controls waning immunity, and mu represents natural birth/death.
+- The model's differential equations describe the rates of change in each compartment.
+- The numerical solver approximates the compartment sizes over time.
+- Sensitivity analysis explores how model outcomes change when parameters change.
+- A contour plot can show the joint influence of two parameters.
+- Always check whether a finite simulation has actually approached equilibrium before describing its final value as an equilibrium.
